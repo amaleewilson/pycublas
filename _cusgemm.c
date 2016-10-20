@@ -25,7 +25,6 @@ PyMODINIT_FUNC init_cusgemm(void) {
     if (m == NULL)
         return;
 
-    /* Load `numpy` functionality. */
     import_array();
 }
 
@@ -33,48 +32,33 @@ static PyObject *cusgemm_cusgemm(PyObject *self, PyObject *args) {
 
   PyObject *a_obj, *b_obj;
 
-  /* Parse the input tuple */
+  /* parse function input args */
   if (!PyArg_ParseTuple(args, "OO", &a_obj, &b_obj))
     return NULL;
 
-  /* Interpret the input objects as numpy arrays. */
+  /* we expect input to be numpy arrays */
   PyObject *a_array = PyArray_FROM_OF(a_obj, NPY_ARRAY_F_CONTIGUOUS);
   PyObject *b_array = PyArray_FROM_OF(b_obj, NPY_ARRAY_F_CONTIGUOUS);
 
-  /* If that didn't work, throw an exception. */
-  if (a_array == NULL || b_array == NULL) {
-    Py_XDECREF(a_array);
-    Py_XDECREF(b_array);
-    return NULL;
-  }
-
-  /* How many data points are there? */
+  /* array's dimensionality */
   int m = (int) PyArray_DIM(a_array, 0);
   int n = (int) PyArray_DIM(b_array, 1);
   int k = (int) PyArray_DIM(a_array, 1);
 
-  /* Get pointers to the data as C-types. */
+  /* TODO: check common dimension, so matrix multiplication is possible */
+
+  /* get pointers to the raw data */
   float *a = (float*)PyArray_DATA(a_array);
   float *b = (float*)PyArray_DATA(b_array);
 
-//    /* Call the external C function to compute the chi-squared. */
-//    double value = chi2(m, b, x, y, yerr, N);
+  /* allocate memory for results */
   float *c = (float *) malloc( m * n * sizeof(float));
 
+  /* call cublas */
   cu_sgemm(a, b, c, m, n, k);
 
-//    /* Clean up. */
-  Py_DECREF(a_array);
-  Py_DECREF(b_array);
 
- //    if (value < 0.0) {
-//        PyErr_SetString(PyExc_RuntimeError,
-//                    "Chi-squared returned an impossible value.");
-//        return NULL;
-//    }
-//
-//    /* Build the output tuple */
-
+  /* return numpy array as a response */
   long int dims[2];
   dims[0] = m;
   dims[1] = n;
